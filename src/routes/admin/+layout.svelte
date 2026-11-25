@@ -17,7 +17,8 @@
 	const navItems: { href: string; label: string; icon: IconName }[] = [
 		{ href: '/admin', label: 'Dashboard', icon: 'dashboard' },
 		{ href: '/admin/videos', label: 'Manajemen Video', icon: 'video' },
-		{ href: '/admin/quizzes', label: 'Kuis Langsung', icon: 'quiz' },
+		{ href: '/admin/quizzes', label: 'Studio Kuis Live', icon: 'quiz' },
+		{ href: '/admin/quizzes/bank', label: 'Daftar Bank Soal', icon: 'list' },
 		{ href: '/admin/users', label: 'Data Peserta', icon: 'users' },
 		{ href: '/admin/attendance', label: 'Laporan Kehadiran', icon: 'attendance' },
 		{ href: '/admin/questions', label: 'Pertanyaan Masuk', icon: 'question' }
@@ -25,6 +26,13 @@
 
 	function isActive(href: string, currentPath: string): boolean {
 		if (href === '/admin') return currentPath === '/admin';
+		if (href === '/admin/quizzes') return currentPath === '/admin/quizzes';
+		if (href === '/admin/quizzes/bank') {
+			return (
+				currentPath === '/admin/quizzes/bank' ||
+				(currentPath.startsWith('/admin/quizzes/') && currentPath.endsWith('/answers'))
+			);
+		}
 		return currentPath === href || currentPath.startsWith(`${href}/`);
 	}
 
@@ -119,7 +127,7 @@
 					<Icon name="shield" class="h-4 w-4" />
 				</div>
 				<div>
-					<div class="text-xs font-extrabold tracking-widest text-emerald-800">KDKMP</div>
+					<div class="text-xs font-extrabold tracking-widest text-emerald-800">KDKMP STREAM STUDIO</div>
 					<div class="text-[11px] font-medium text-slate-400">Administrator</div>
 				</div>
 			</div>
@@ -162,7 +170,7 @@
 
 		<!-- Main Content -->
 		<div class="min-w-0 flex-1">
-			<main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+			<main class="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
 				{@render children()}
 			</main>
 		</div>

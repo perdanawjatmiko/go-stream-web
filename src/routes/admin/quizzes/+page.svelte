@@ -6,7 +6,7 @@
 	import type { AdminQuizEntry, Video } from '#lib/types.js';
 
 	let loading = $state(true);
-	let entries = $state<AdminQuizEntry[]>([]);
+	let totalQuizzes = $state(0);
 	let videos = $state<Video[]>([]);
 
 	// Quiz Builder State
@@ -20,27 +20,27 @@
 	let tfCorrect = $state<'Benar' | 'Salah'>('Benar');
 	let creating = $state(false);
 
-	async function loadQuizzes() {
+	async function loadMetadata() {
 		loading = true;
 		try {
 			const res = await apiFetch<{
 				entries: AdminQuizEntry[];
 				videos: Video[];
 			}>('/api/admin/quizzes');
-			entries = res.entries;
+			totalQuizzes = res.entries.length;
 			videos = res.videos;
 			if (selectedVideoId === 0 && res.videos.length > 0) {
 				const active = res.videos.find((v) => v.is_active);
 				selectedVideoId = active ? active.id : res.videos[0].id;
 			}
 		} catch {
-			toast.error('Gagal memuat daftar kuis.');
+			toast.error('Gagal memuat data webinar kuis.');
 		} finally {
 			loading = false;
 		}
 	}
 
-	onMount(loadQuizzes);
+	onMount(loadMetadata);
 
 	async function handleCreateQuiz(event: SubmitEvent) {
 		event.preventDefault();
@@ -64,25 +64,12 @@
 			wrong1 = '';
 			wrong2 = '';
 			wrong3 = '';
-			toast.success('Soal kuis berhasil disimpan sebagai draft.');
-			await loadQuizzes();
+			totalQuizzes += 1;
+			toast.success('Soal kuis berhasil disimpan ke Daftar Bank Soal.');
 		} catch (err) {
 			toast.error(err instanceof ApiError ? err.message : 'Gagal membuat soal kuis.');
 		} finally {
 			creating = false;
-		}
-	}
-
-	async function handlePublish(q: AdminQuizEntry) {
-		try {
-			await apiFetch(`/api/admin/quizzes/${q.id}/publish`, {
-				method: 'POST',
-				body: {}
-			});
-			toast.success('Kuis diterbitkan dan dikirim real-time ke layar peserta!');
-			await loadQuizzes();
-		} catch (err) {
-			toast.error(err instanceof ApiError ? err.message : 'Gagal menerbitkan kuis.');
 		}
 	}
 </script>
@@ -92,12 +79,22 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-bold tracking-tight text-slate-900">Studio Kuis Langsung</h1>
-		<p class="mt-1 text-sm text-slate-500">
-			Siapkan pertanyaan dari narasumber lalu tekan <strong>Terbitkan</strong> untuk memunculkannya
-			seketika di layar peserta.
-		</p>
+	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+		<div>
+			<h1 class="text-2xl font-bold tracking-tight text-slate-900">Studio Kuis Langsung</h1>
+			<p class="mt-1 text-sm text-slate-500">
+				Buat soal kuis baru untuk narasumber, lalu kelola penerbitan dan jawabannya di halaman
+				<strong>Daftar Bank Soal</strong>.
+			</p>
+		</div>
+
+		<a
+			href="/admin/quizzes/bank"
+			class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 sm:text-sm"
+		>
+			<Icon name="list" class="h-4 w-4" />
+			<span>Daftar Bank Soal ({totalQuizzes})</span>
+		</a>
 	</div>
 
 	<!-- Create Quiz Card -->
@@ -106,7 +103,9 @@
 
 		{#if videos.length === 0 && !loading}
 			<p class="mt-3 text-sm text-slate-500">
-				Tambahkan minimal satu video di menu <a href="/admin/videos" class="font-bold text-emerald-700 underline">Manajemen Video</a> terlebih dahulu.
+				Tambahkan minimal satu video di menu
+				<a href="/admin/videos" class="font-bold text-emerald-700 underline">Manajemen Video</a>
+				terlebih dahulu.
 			</p>
 		{:else}
 			<form class="mt-4 space-y-4" onsubmit={handleCreateQuiz}>
@@ -149,7 +148,7 @@
 					</label>
 					<textarea
 						id="quiz-question"
-						rows="2"
+						rows="3"
 						required
 						maxlength="500"
 						bind:value={question}
@@ -159,7 +158,7 @@
 				</div>
 
 				{#if kind === 'multiple_choice'}
-					<div class="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+					<div class="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
 						<div>
 							<label for="ans-correct" class="block text-xs font-bold text-emerald-800 uppercase">
 								✓ Jawaban Benar
@@ -221,7 +220,9 @@
 					<div class="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
 						<span class="block text-xs font-bold text-slate-700 uppercase">Pilih Kunci Jawaban</span>
 						<div class="mt-2 flex gap-4">
-							<label class="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
+							<label
+								class="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800"
+							>
 								<input
 									type="radio"
 									name="tf"
@@ -231,7 +232,9 @@
 								/>
 								<span>Benar</span>
 							</label>
-							<label class="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
+							<label
+								class="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800"
+							>
 								<input
 									type="radio"
 									name="tf"
@@ -256,75 +259,6 @@
 					</button>
 				</div>
 			</form>
-		{/if}
-	</section>
-
-	<!-- Quiz List -->
-	<section class="space-y-3">
-		<h2 class="text-base font-bold text-slate-900">Daftar Bank Soal ({entries.length})</h2>
-
-		{#if loading}
-			<div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
-				Memuat daftar soal kuis...
-			</div>
-		{:else if entries.length === 0}
-			<div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-				Belum ada soal kuis yang dibuat.
-			</div>
-		{:else}
-			{#each entries as q (q.id)}
-				<article class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-					<div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-						<div class="space-y-1.5">
-							<div class="flex flex-wrap items-center gap-2">
-								{#if q.is_published}
-									<span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20">
-										PUBLISHED
-									</span>
-								{:else}
-									<span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
-										DRAFT
-									</span>
-								{/if}
-								<span class="text-xs font-semibold text-slate-500">
-									{q.video_title} • {q.kind === 'true_false' ? 'Benar/Salah' : 'Pilihan Ganda'}
-								</span>
-							</div>
-							<h3 class="text-base font-bold text-slate-900">{q.question}</h3>
-						</div>
-
-						<div class="flex shrink-0 items-center gap-2">
-							{#if !q.is_published}
-								<button
-									type="button"
-									onclick={() => handlePublish(q)}
-									class="rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-emerald-800"
-								>
-									Terbitkan Sekarang
-								</button>
-							{/if}
-							<a
-								href="/admin/quizzes/{q.id}/answers"
-								class="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
-							>
-								Jawaban ({q.answers_count})
-							</a>
-						</div>
-					</div>
-
-					<div class="mt-3.5 flex flex-wrap gap-2">
-						{#each q.options as opt, idx (idx)}
-							<span
-								class="rounded-lg border px-2.5 py-1 text-xs {idx === q.correct_index
-									? 'border-emerald-300 bg-emerald-50 font-bold text-emerald-800'
-									: 'border-slate-200 bg-slate-50 text-slate-600'}"
-							>
-								{idx === q.correct_index ? '✓ ' : ''}{opt}
-							</span>
-						{/each}
-					</div>
-				</article>
-			{/each}
 		{/if}
 	</section>
 </div>

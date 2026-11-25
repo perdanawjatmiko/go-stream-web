@@ -3,8 +3,10 @@
 	import { goto } from '$app/navigation';
 	import { ApiError, apiFetch, setCsrfToken } from '#lib/api.js';
 	import CopyrightModal from '#lib/components/CopyrightModal.svelte';
-	import EngagementPanel from '#lib/components/EngagementPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
+	import LiveQuizCard from '#lib/components/LiveQuizCard.svelte';
+	import LiveQuizModal from '#lib/components/LiveQuizModal.svelte';
+	import QuestionsCard from '#lib/components/QuestionsCard.svelte';
 	import YoutubeTheater from '#lib/components/YoutubeTheater.svelte';
 	import { toast } from '#lib/toast.svelte.js';
 	import type { LiveQuiz, Question, User, Video, VideoStateResponse } from '#lib/types.js';
@@ -20,7 +22,11 @@
 	let acknowledged = $state(false);
 
 	let quizzes = $state<LiveQuiz[]>([]);
-	let activeTab = $state<'questions' | 'quizzes'>('questions');
+	let quizIndex = $state(0);
+	let quizSelections = $state<Record<number, number>>({});
+	let popupQuizIndex = $state<number | null>(null);
+	let knownQuizIds = new Set<number>();
+
 	let shortcutNotice = $state(false);
 	let shortcutTimer: number | undefined;
 
@@ -70,17 +76,28 @@
 		}
 	}
 
-	async function loadQuizzes(notifyNew = false) {
+	async function loadQuizzes(triggerPopupOnNew = false) {
 		try {
-			const prevIds = new Set(quizzes.map((q) => q.id));
 			const items = await apiFetch<LiveQuiz[]>('/api/video/quizzes');
-			quizzes = items;
-			const hasBrandNew = items.some((q) => !prevIds.has(q.id) && !q.answered);
-			if (hasBrandNew) {
-				activeTab = 'quizzes';
-				if (notifyNew) {
-					toast.info('Kuis baru dari narasumber telah tersedia!');
+			let newestUnansweredIdx = -1;
+
+			items.forEach((q, idx) => {
+				if (!knownQuizIds.has(q.id)) {
+					knownQuizIds.add(q.id);
+					if (!q.answered) {
+						newestUnansweredIdx = idx;
+					}
 				}
+			});
+
+			quizzes = items;
+
+			if (triggerPopupOnNew && newestUnansweredIdx !== -1) {
+				quizIndex = newestUnansweredIdx;
+				if (document.fullscreenElement) {
+					document.exitFullscreen().catch(() => {});
+				}
+				popupQuizIndex = newestUnansweredIdx;
 			}
 		} catch {
 			// Ignore transient quiz fetch failure
@@ -89,6 +106,8 @@
 
 	onMount(() => {
 		let eventSource: EventSource | null = null;
+		let initialSSEConnect = true;
+		let fallbackInterval: number | undefined;
 
 		(async () => {
 			await loadVideoState();
@@ -97,21 +116,56 @@
 			}
 			loading = false;
 
-			// Connect real-time SSE stream for instant quiz & active-video updates
+			// Real-time SSE connection for instant quiz & active-video broadcasts
 			eventSource = new EventSource('/api/video/quizzes/stream', { withCredentials: true });
+
+			eventSource.addEventListener('connected', () => {
+				if (initialSSEConnect) {
+					initialSSEConnect = false;
+					return;
+				}
+				// Re-sync after any network blip/reconnect so zero published quizzes are missed
+				if (available) {
+					loadQuizzes(true);
+				}
+			});
+
 			eventSource.addEventListener('quiz_update', () => {
 				loadQuizzes(true);
 			});
+
 			eventSource.addEventListener('video_update', async () => {
+				knownQuizIds = new Set();
+				popupQuizIndex = null;
 				await loadVideoState();
 				if (available) {
 					await loadQuizzes(false);
 				}
 			});
+
+			// Lightweight safety net only if SSE connection is degraded/reconnecting or tab wakes up
+			fallbackInterval = window.setInterval(() => {
+				if (
+					available &&
+					!document.hidden &&
+					(!eventSource || eventSource.readyState !== EventSource.OPEN)
+				) {
+					loadQuizzes(true);
+				}
+			}, 5000);
 		})();
+
+		const onVisibilityChange = () => {
+			if (!document.hidden && available) {
+				loadQuizzes(true);
+			}
+		};
+		document.addEventListener('visibilitychange', onVisibilityChange);
 
 		return () => {
 			window.clearTimeout(shortcutTimer);
+			window.clearInterval(fallbackInterval);
+			document.removeEventListener('visibilitychange', onVisibilityChange);
 			if (eventSource) {
 				eventSource.close();
 			}
@@ -143,12 +197,14 @@
 >
 	<!-- Top Navigation -->
 	<header class="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm">
-		<div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
+		<div class="mx-auto flex h-16 w-full items-center justify-between px-4 sm:px-6">
 			<a href="/video" class="flex items-center gap-2.5 text-decoration-none">
 				<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-white">
 					<Icon name="video" class="h-4 w-4" />
 				</div>
-				<span class="text-sm font-extrabold tracking-widest text-emerald-800">KDKMP</span>
+				<span class="text-sm font-extrabold tracking-widest text-emerald-800"
+					>KDKMP Stream Studio</span
+				>
 			</a>
 
 			{#if user}
@@ -180,10 +236,8 @@
 			</div>
 		</div>
 	{:else if !available || !activeVideo}
-		<main class="mx-auto max-w-lg px-4 py-20 text-center">
-			<div
-				class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm"
-			>
+		<main class="mx-auto w-full px-4 py-20 text-center">
+			<div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
 				<div
 					class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"
 				>
@@ -204,12 +258,32 @@
 					acknowledged = true;
 				}}
 			/>
+		{:else if popupQuizIndex !== null && quizzes[popupQuizIndex]}
+			<LiveQuizModal
+				quiz={quizzes[popupQuizIndex]}
+				quizNumber={popupQuizIndex + 1}
+				totalQuizzes={quizzes.length}
+				bind:selections={quizSelections}
+				onClose={() => (popupQuizIndex = null)}
+				onRefreshQuizzes={() => loadQuizzes(false)}
+			/>
 		{/if}
 
-		<main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+		<main class="mx-auto w-full px-4 py-6 sm:px-6 lg:py-8">
 			<div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
 				<!-- Left Stage: Video Theater + Webinar Info -->
 				<div class="space-y-4 lg:col-span-8">
+					<div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs sm:p-6">
+						<h1 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+							{activeVideo.title}
+						</h1>
+						{#if activeVideo.description}
+							<p class="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-slate-600">
+								{activeVideo.description}
+							</p>
+						{/if}
+					</div>
+
 					{#if acknowledged && user}
 						{#key activeVideo.id}
 							<YoutubeTheater
@@ -230,28 +304,19 @@
 							Menunggu konfirmasi pemberitahuan hak cipta...
 						</div>
 					{/if}
-
-					<div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs sm:p-6">
-						<h1 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-							{activeVideo.title}
-						</h1>
-						{#if activeVideo.description}
-							<p class="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-slate-600">
-								{activeVideo.description}
-							</p>
-						{/if}
-					</div>
 				</div>
 
-				<!-- Right Panel: Split-View Interactive Engagement -->
-				<div class="lg:col-span-4">
-					<EngagementPanel
-						bind:questions
-						bind:canAsk
+				<!-- Right Column: Dedicated Stacked Cards (Live Quiz on Top, Q&A Below) -->
+				<div class="space-y-5 lg:col-span-4">
+					<LiveQuizCard
 						{quizzes}
-						bind:activeTab
+						bind:quizIndex
+						bind:selections={quizSelections}
 						onRefreshQuizzes={() => loadQuizzes(false)}
+						onOpenModal={(idx) => (popupQuizIndex = idx)}
 					/>
+
+					<QuestionsCard bind:questions bind:canAsk />
 				</div>
 			</div>
 		</main>

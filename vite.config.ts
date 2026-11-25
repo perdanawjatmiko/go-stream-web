@@ -25,6 +25,13 @@ export default defineConfig({
 	server: {
 		port: 5173,
 		proxy: {
+			'/api/video/quizzes/stream': {
+				target: backendTarget,
+				changeOrigin: false,
+				headers: {
+					'Accept-Encoding': 'identity'
+				}
+			},
 			'/api': {
 				target: backendTarget,
 				changeOrigin: false

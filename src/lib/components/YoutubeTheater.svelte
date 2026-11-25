@@ -256,139 +256,144 @@
 	}
 </script>
 
-<!-- Keep all application-owned elements strictly outside the YouTube viewport for compliance -->
-<div
-	bind:this={shellEl}
-	class="theater-shell overflow-hidden rounded-2xl bg-slate-950 shadow-xl ring-1 ring-slate-900/10"
->
-	<!-- Top Status Bar (Outside Video Viewport) -->
-	<div
-		class="flex items-center justify-between border-b border-slate-800/90 bg-slate-900/95 px-4 py-2.5 text-xs text-slate-200"
-	>
-		<div class="flex items-center gap-2 font-semibold tracking-wide">
+<div class="space-y-3">
+	<!-- External Status Bar (Completely outside the video card so nothing covers the video) -->
+	<div class="flex flex-wrap items-center justify-between gap-2">
+		<div
+			class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold tracking-wide text-emerald-800 shadow-2xs"
+		>
 			<span class="relative flex h-2.5 w-2.5">
 				<span
-					class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
+					class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75"
 				></span>
-				<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+				<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-600"></span>
 			</span>
-			<span class="text-emerald-400 uppercase">Live Stream</span>
+			<span class="uppercase">Live Stream</span>
 		</div>
 
-		<div class="rounded-md bg-slate-800/90 px-2.5 py-1 font-medium text-slate-300 tabular-nums">
-			Waktu menonton: <strong class="text-white">{totalWatchedDisplay}</strong>
+		<div
+			class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-600 shadow-2xs tabular-nums"
+		>
+			<span>Waktu menonton:</span>
+			<strong class="font-bold text-slate-900">{totalWatchedDisplay}</strong>
 		</div>
 	</div>
 
-	<!-- Pure 16:9 YouTube IFrame Viewport -->
-	<div bind:this={mountEl} class="theater-viewport relative aspect-video w-full bg-black"></div>
-
-	<!-- Custom Control Bar (Outside Video Viewport) -->
+	<!-- Video Theater Card: Starts directly with pure 16:9 YouTube IFrame Viewport -->
 	<div
-		class="flex items-center gap-2 border-t border-slate-800 bg-slate-950 px-3 py-2.5 text-white sm:gap-3 sm:px-4"
-		aria-label="Kontrol video"
+		bind:this={shellEl}
+		class="theater-shell overflow-hidden rounded-2xl bg-slate-950 shadow-xl ring-1 ring-slate-900/10"
 	>
-		<button
-			type="button"
-			onclick={togglePlay}
-			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-slate-900 transition hover:border-emerald-500 hover:bg-emerald-600"
-			aria-label={isPlaying ? 'Pause' : 'Play'}
-			title={isPlaying ? 'Pause' : 'Play'}
+		<!-- Pure 16:9 YouTube IFrame Viewport -->
+		<div bind:this={mountEl} class="theater-viewport relative aspect-video w-full bg-black"></div>
+
+		<!-- Custom Control Bar (Outside Video Viewport) -->
+		<div
+			class="flex items-center gap-2 border-t border-slate-800 bg-slate-950 px-3 py-2.5 text-white sm:gap-3 sm:px-4"
+			aria-label="Kontrol video"
 		>
-			<Icon name={isPlaying ? 'pause' : 'play'} class="h-4 w-4" />
-		</button>
-
-		<button
-			type="button"
-			onclick={() => seekBy(-10)}
-			class="hidden h-9 items-center gap-1 rounded-lg border border-white/15 bg-slate-900 px-2.5 text-xs font-semibold transition hover:border-emerald-500 hover:bg-emerald-600 sm:flex"
-			title="Mundur 10 detik"
-		>
-			−10s
-		</button>
-
-		<button
-			type="button"
-			onclick={() => seekBy(10)}
-			class="hidden h-9 items-center gap-1 rounded-lg border border-white/15 bg-slate-900 px-2.5 text-xs font-semibold transition hover:border-emerald-500 hover:bg-emerald-600 sm:flex"
-			title="Maju 10 detik"
-		>
-			+10s
-		</button>
-
-		<span class="min-w-[3.1rem] text-center text-xs text-slate-300 tabular-nums">
-			{formatDuration(currentTime)}
-		</span>
-
-		<input
-			type="range"
-			min="0"
-			max="1000"
-			value={progressPermille}
-			oninput={handleSeekInput}
-			aria-label="Posisi video"
-			class="theater-range min-w-16 flex-1"
-		/>
-
-		<span class="hidden min-w-[3.1rem] text-center text-xs text-slate-400 tabular-nums sm:inline">
-			{formatDuration(duration)}
-		</span>
-
-		{#if isMuted}
 			<button
 				type="button"
-				onclick={toggleMute}
-				class="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500"
-			>
-				<Icon name="mute" class="h-4 w-4" />
-				<span>Aktifkan Suara</span>
-			</button>
-		{:else}
-			<button
-				type="button"
-				onclick={toggleMute}
+				onclick={togglePlay}
 				class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-slate-900 transition hover:border-emerald-500 hover:bg-emerald-600"
-				aria-label="Mute"
-				title="Mute"
+				aria-label={isPlaying ? 'Pause' : 'Play'}
+				title={isPlaying ? 'Pause' : 'Play'}
 			>
-				<Icon name="volume" class="h-4 w-4" />
+				<Icon name={isPlaying ? 'pause' : 'play'} class="h-4 w-4" />
 			</button>
-		{/if}
 
-		<input
-			type="range"
-			min="0"
-			max="100"
-			value={isMuted ? 0 : volume}
-			oninput={handleVolumeInput}
-			aria-label="Volume"
-			class="theater-range hidden w-20 md:block"
-		/>
+			<button
+				type="button"
+				onclick={() => seekBy(-10)}
+				class="hidden h-9 items-center gap-1 rounded-lg border border-white/15 bg-slate-900 px-2.5 text-xs font-semibold transition hover:border-emerald-500 hover:bg-emerald-600 sm:flex"
+				title="Mundur 10 detik"
+			>
+				−10s
+			</button>
 
-		<button
-			type="button"
-			onclick={toggleFullscreen}
-			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-slate-900 transition hover:border-emerald-500 hover:bg-emerald-600"
-			aria-label={isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen'}
-			title={isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen'}
-		>
-			<Icon name={isFullscreen ? 'exit-fullscreen' : 'fullscreen'} class="h-4 w-4" />
-		</button>
-	</div>
+			<button
+				type="button"
+				onclick={() => seekBy(10)}
+				class="hidden h-9 items-center gap-1 rounded-lg border border-white/15 bg-slate-900 px-2.5 text-xs font-semibold transition hover:border-emerald-500 hover:bg-emerald-600 sm:flex"
+				title="Maju 10 detik"
+			>
+				+10s
+			</button>
 
-	<!-- Attribution & Viewer Watermark Bar (Outside Video Viewport) -->
-	<div
-		class="flex flex-col justify-between gap-1 border-t border-slate-800/80 bg-slate-900 px-4 py-2 text-xs text-slate-400 sm:flex-row sm:items-center"
-		aria-label="Informasi hak cipta dan pengguna"
-	>
-		<div class="flex items-center gap-1.5 font-semibold text-slate-200">
-			<Icon name="shield" class="h-3.5 w-3.5 text-emerald-400" />
-			<span>Copyright PT. Agrinas Pangan Nusantara</span>
+			<span class="min-w-[3.1rem] text-center text-xs text-slate-300 tabular-nums">
+				{formatDuration(currentTime)}
+			</span>
+
+			<input
+				type="range"
+				min="0"
+				max="1000"
+				value={progressPermille}
+				oninput={handleSeekInput}
+				aria-label="Posisi video"
+				class="theater-range min-w-16 flex-1"
+			/>
+
+			<span class="hidden min-w-[3.1rem] text-center text-xs text-slate-400 tabular-nums sm:inline">
+				{formatDuration(duration)}
+			</span>
+
+			{#if isMuted}
+				<button
+					type="button"
+					onclick={toggleMute}
+					class="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500"
+				>
+					<Icon name="mute" class="h-4 w-4" />
+					<span>Aktifkan Suara</span>
+				</button>
+			{:else}
+				<button
+					type="button"
+					onclick={toggleMute}
+					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-slate-900 transition hover:border-emerald-500 hover:bg-emerald-600"
+					aria-label="Mute"
+					title="Mute"
+				>
+					<Icon name="volume" class="h-4 w-4" />
+				</button>
+			{/if}
+
+			<input
+				type="range"
+				min="0"
+				max="100"
+				value={isMuted ? 0 : volume}
+				oninput={handleVolumeInput}
+				aria-label="Volume"
+				class="theater-range hidden w-20 md:block"
+			/>
+
+			<button
+				type="button"
+				onclick={toggleFullscreen}
+				class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-slate-900 transition hover:border-emerald-500 hover:bg-emerald-600"
+				aria-label={isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen'}
+				title={isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen'}
+			>
+				<Icon name={isFullscreen ? 'exit-fullscreen' : 'fullscreen'} class="h-4 w-4" />
+			</button>
 		</div>
-		<div class="truncate text-slate-400">
-			<span>{user.name}</span>
-			<span class="mx-1.5 text-slate-600">•</span>
-			<span>{user.email}</span>
+
+		<!-- Attribution & Viewer Watermark Bar (Outside Video Viewport) -->
+		<div
+			class="flex flex-col justify-between gap-1 border-t border-slate-800/80 bg-slate-900 px-4 py-2 text-xs text-slate-400 sm:flex-row sm:items-center"
+			aria-label="Informasi hak cipta dan pengguna"
+		>
+			<div class="flex items-center gap-1.5 font-semibold text-slate-200">
+				<Icon name="shield" class="h-3.5 w-3.5 text-emerald-400" />
+				<span>Copyright PT. Agrinas Pangan Nusantara</span>
+			</div>
+			<div class="truncate text-slate-400">
+				<span>{user.name}</span>
+				<span class="mx-1.5 text-slate-600">•</span>
+				<span>{user.email}</span>
+			</div>
 		</div>
 	</div>
 </div>

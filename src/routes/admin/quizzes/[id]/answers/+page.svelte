@@ -40,10 +40,10 @@
 <div class="space-y-6">
 	<div>
 		<a
-			href="/admin/quizzes"
+			href="/admin/quizzes/bank"
 			class="text-xs font-bold text-emerald-700 hover:underline"
 		>
-			← Kembali ke Studio Kuis Langsung
+			← Kembali ke Daftar Bank Soal
 		</a>
 		<h1 class="mt-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
 			{loading ? 'Memuat Kuis...' : question}
