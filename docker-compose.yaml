@@ -1,0 +1,12 @@
+name: kdkmp-video-web
+
+services:
+  web:
+    image: ${WEB_IMAGE:-asia-southeast2-docker.pkg.dev/dev-agrinas/company-docker/streaming-web:latest}
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://host.docker.internal:8080}
+    ports:
+      - "${WEB_HOST_PORT:-3000}:8080"

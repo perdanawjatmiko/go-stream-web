@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: Nama cluster GKE tujuan
+        required: true
+        type: string
+      cluster_location:
+        description: Region atau zone cluster GKE
+        required: true
+        type: string
+
+env:
+  IMAGE: asia-southeast2-docker.pkg.dev/dev-agrinas/company-docker/streaming-web
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run check
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+  image:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build image
+        run: |
+          buildah build \
+            --platform linux/amd64 \
+            --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+            -t $IMAGE:latest \
+            -t $IMAGE:${GITHUB_SHA} \
+            .
+
+      - name: Authenticate to Google Cloud
+        if: github.event_name != 'pull_request'
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: dev-agrinas
+
+      - name: Set up Google Cloud CLI
+        if: github.event_name != 'pull_request'
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify Artifact Registry repository
+        if: github.event_name != 'pull_request'
+        run: gcloud artifacts repositories describe company-docker --project=dev-agrinas --location=asia-southeast2 --format='value(name)'
+
+      - name: Push image to GCP Artifact Registry
+        if: github.event_name != 'pull_request'
+        run: |
+          gcloud auth print-access-token | buildah login -u oauth2accesstoken --password-stdin asia-southeast2-docker.pkg.dev
+          buildah push "$IMAGE:latest"
+          buildah push "$IMAGE:${GITHUB_SHA}"
+
+  # deploy:
+  #   if: github.event_name == 'workflow_dispatch'
+  #   needs: image
+  #   runs-on: ubuntu-latest
+  #   environment: production
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - name: Authenticate to Google Cloud
+  #       uses: google-github-actions/auth@v3
+  #       with:
+  #         credentials_json: ${{ secrets.GCP_SA_KEY }}
+  #         project_id: dev-agrinas
+  #     - name: Get GKE credentials
+  #       uses: google-github-actions/get-gke-credentials@v3
+  #       with:
+  #         cluster_name: ${{ inputs.cluster_name }}
+  #         location: ${{ inputs.cluster_location }}
+  #         project_id: dev-agrinas
+  #     - name: Deploy image and verify rollout
+  #       run: |
+  #         kubectl -n streaming set image deployment/streaming-web web="$IMAGE:${GITHUB_SHA}"
+  #         kubectl -n streaming rollout status deployment/streaming-web --timeout=5m

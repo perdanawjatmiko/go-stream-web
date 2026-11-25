@@ -6,7 +6,9 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.27-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV NGINX_ENVSUBST_FILTER=^BACKEND_UPSTREAM$
+ENV BACKEND_UPSTREAM=http://streaming-app:80
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/build /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]
