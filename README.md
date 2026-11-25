@@ -1,56 +1,31 @@
-# sv
+# go-stream-web (KDKMP Webinar Frontend)
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Antarmuka web super ringan untuk platform webinar **KDKMP (`go-stream`)**, dibangun menggunakan **Svelte 5 (Runes)**, **SvelteKit (`@sveltejs/adapter-static`)**, **Vite**, dan **Tailwind CSS v4** tanpa dependensi UI runtime berat.
 
-## Creating a project
+## Fitur Antarmuka
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Ruang Webinar Split-View (`/video`):**
+  - *YouTube Theater* yang mematuhi kebijakan YouTube IFrame API (tanpa elemen overlay di atas layar video), dilengkapi kontrol SVG kustom, pencatat waktu tonton otomatis + `sendBeacon`, dan atribusi hak cipta.
+  - Panel interaksi *sticky* dengan tab **Tanya Jawab (kuota 2 pertanyaan)** dan **Kuis Live** yang terhubung secara *real-time* via **Server-Sent Events (SSE)**.
+- **Portal Administrator (`/admin`):**
+  - Navigasi sidebar responsif, Dashboard statistik, Manajemen Video YouTube, Studio Kuis Langsung, Manajemen Peserta, serta Laporan Kehadiran & Pertanyaan lengkap dengan ekspor `.xlsx`.
 
-```sh
-# create a new project
-npx sv create my-app
-```
+## Menjalankan Secara Lokal
 
-To recreate this project with the same configuration:
+Pastikan server backend `go-stream` sudah berjalan di `http://localhost:8080`, lalu jalankan:
 
-```sh
-# recreate this project
-npx sv@1.7.1 create --template minimal --types ts --add prettier playwright="demo:no" tailwindcss="plugins:none" eslint --install npm go-stream-web
-```
-
-## Adding features
-
-Add features to your project with `sv add`:
-
-```sh
-npx sv add
-```
-
-For example, to add Tailwind CSS:
-
-```sh
-npx sv add tailwindcss
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+```powershell
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Aplikasi dapat diakses di `http://localhost:5173` (proxy `/api` dan `/health` otomatis diarahkan ke `http://localhost:8080`). Untuk mengarahkan ke URL backend lain saat development, set environment variable `BACKEND_URL`.
 
-To create a production version of your app:
+## Build Produksi (Static SPA)
 
-```sh
+```powershell
+npm run check
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Hasil build statis murni (+ prekompresi `.gz` dan `.br`) akan tersedia di direktori `build/` dan siap disajikan oleh Nginx / CDN (lihat contoh konfigurasi di `Dockerfile` dan `nginx.conf`).
