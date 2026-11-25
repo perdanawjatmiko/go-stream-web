@@ -6,15 +6,6 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      cluster_name:
-        description: Nama cluster GKE tujuan
-        required: true
-        type: string
-      cluster_location:
-        description: Region atau zone cluster GKE
-        required: true
-        type: string
 
 env:
   IMAGE: asia-southeast2-docker.pkg.dev/dev-agrinas/company-docker/streaming-web
@@ -88,28 +79,3 @@ jobs:
           gcloud auth print-access-token | buildah login -u oauth2accesstoken --password-stdin asia-southeast2-docker.pkg.dev
           buildah push "$IMAGE:latest"
           buildah push "$IMAGE:${GITHUB_SHA}"
-
-  # deploy:
-  #   if: github.event_name == 'workflow_dispatch'
-  #   needs: image
-  #   runs-on: ubuntu-latest
-  #   environment: production
-  #   permissions:
-  #     contents: read
-  #   steps:
-  #     - uses: actions/checkout@v7
-  #     - name: Authenticate to Google Cloud
-  #       uses: google-github-actions/auth@v3
-  #       with:
-  #         credentials_json: ${{ secrets.GCP_SA_KEY }}
-  #         project_id: dev-agrinas
-  #     - name: Get GKE credentials
-  #       uses: google-github-actions/get-gke-credentials@v3
-  #       with:
-  #         cluster_name: ${{ inputs.cluster_name }}
-  #         location: ${{ inputs.cluster_location }}
-  #         project_id: dev-agrinas
-  #     - name: Deploy image and verify rollout
-  #       run: |
-  #         kubectl -n streaming set image deployment/streaming-web web="$IMAGE:${GITHUB_SHA}"
-  #         kubectl -n streaming rollout status deployment/streaming-web --timeout=5m
